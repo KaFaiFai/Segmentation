@@ -108,7 +108,7 @@ def _test():
     print(f"{len(dataset_train)=}| {len(dataset_val)=}| {len(dataset_test)=}")
     image, label, instance, panoptic = dataset_train[1674]
     print(image[0, :3, :3])
-    print(instance[0, :9, :9])
+    print(instance[0, :3, :3])
 
 
 if __name__ == "__main__":
