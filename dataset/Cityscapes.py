@@ -5,15 +5,8 @@ source: https://www.cityscapes-dataset.com/
 
 from pathlib import Path
 import torch
-import os
-import numpy as np
 from torch.utils import data
-from torch.utils.data import DataLoader
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 from torchvision import transforms
-import time
 from PIL import Image
 
 
@@ -82,6 +75,7 @@ class CityscapesDataset(data.Dataset):
 
     def __getitem__(self, index):
         to_tensor = transforms.PILToTensor()
+
         image_file, label_file, instance_file, panoptic_file = self.training_files[
             index
         ]
@@ -89,8 +83,10 @@ class CityscapesDataset(data.Dataset):
         image = self.transform(image)
         label = Image.open(label_file).convert("RGB")
         label = to_tensor(label)
+        label = multiclass_mask_to_multiple_binary_masks(label)
         instance = Image.open(instance_file).convert("RGB")
         instance = to_tensor(instance)
+        instance = multiclass_mask_to_multiple_binary_masks(instance)
         panoptic = Image.open(panoptic_file).convert("RGB")
         panoptic = to_tensor(panoptic)
 
@@ -98,6 +94,24 @@ class CityscapesDataset(data.Dataset):
 
     def __len__(self):
         return len(self.training_files)
+
+
+def multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
+    # check if different channels contain the same masks
+    if len(mask.shape) == 3:
+        num_channels = mask.shape[0]
+        for c in range(num_channels - 1):
+            assert torch.all(mask[c] == mask[c + 1])
+        mask = mask[0, :, :]
+
+    masks = []
+    num_classes = 19
+
+    for class_id in range(num_classes):
+        masks.append((mask == class_id).to(int))
+
+    binary_masks = torch.stack(masks)
+    return binary_masks
 
 
 def _test():
@@ -108,7 +122,8 @@ def _test():
     print(f"{len(dataset_train)=}| {len(dataset_val)=}| {len(dataset_test)=}")
     image, label, instance, panoptic = dataset_train[1674]
     print(image[0, :3, :3])
-    print(instance[0, :3, :3])
+    print(image.shape, label.shape, instance.shape, panoptic.shape)
+    # print(instance[0, :3, :3])
 
 
 if __name__ == "__main__":
