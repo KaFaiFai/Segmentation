@@ -17,11 +17,11 @@ from model.UNET import UNET
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 NUM_EPOCHS = 3
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 160  # 1280 originally
-IMAGE_WIDTH = 240  # 1918 originally
+IMAGE_HEIGHT = 100  # 1024 originally
+IMAGE_WIDTH = 200  # 2048 originally
 LOAD_MODEL = False
 DATA_ROOT = r"./training_data"
 
@@ -54,7 +54,7 @@ def main():
     #     ],
     # )
 
-    print("Init model ...")
+    print(f"Init model using {DEVICE=} ...")
     model = UNET(in_channels=3, out_channels=19).to(DEVICE)
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -76,8 +76,8 @@ def main():
 
         for batch_idx, (image, label, _, _) in enumerate(train_loader):
             print("loading image and label ...")
-            image = image.to(device=DEVICE)
-            label = label.to(device=DEVICE)
+            image = image.to(device=DEVICE)[:, :, :IMAGE_HEIGHT, :IMAGE_WIDTH]
+            label = label.float().to(device=DEVICE)[:, :, :IMAGE_HEIGHT, :IMAGE_WIDTH]
             print(f"{image.shape=}, {label.shape=}")
 
             # forward
