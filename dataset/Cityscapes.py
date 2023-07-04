@@ -7,11 +7,17 @@ from pathlib import Path
 import torch
 from torch.utils import data
 from torchvision import transforms
+import numpy as np
 from PIL import Image
 
 
 class CityscapesDataset(data.Dataset):
-    def __init__(self, root: str | Path, split: str = "train", transform=None):
+    HEIGHT, WIDTH = 1024, 2048
+    IMAGENET_MEAN = np.array((0.485, 0.456, 0.406))
+    IMAGENET_STD = np.array((0.229, 0.224, 0.225))
+    INPUT_CHANNELS, OUTPUT_CHANNELS = 3, 19
+
+    def __init__(self, root: str | Path, split: str = "train", transform=None, scale=1):
         super().__init__()
 
         if type(root) == str:
@@ -19,6 +25,7 @@ class CityscapesDataset(data.Dataset):
         else:
             self.root_dir = root
         assert self.root_dir.is_dir()
+        assert scale > 0, "scale of images must be > 0"
 
         if split not in {"train", "val", "test"}:
             raise ValueError(
@@ -61,17 +68,34 @@ class CityscapesDataset(data.Dataset):
             assert image_seq == label_seq == instance_seq == panoptic_seq
             assert image_frame == label_frame == instance_frame == panoptic_frame
 
+        self.scale = scale
+        self.size = (int(self.HEIGHT * scale), int(self.WIDTH * scale))
         if transform is None:
-            self.transform = transforms.Compose(
+            self.transform_image = transforms.Compose(
                 [
                     transforms.ToTensor(),
+                    transforms.Resize(self.size, antialias=None),
                     transforms.Normalize(
-                        [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inplace=True
+                        mean=self.IMAGENET_MEAN,
+                        std=self.IMAGENET_STD,
+                        inplace=True,
                     ),
                 ]
             )
         else:
-            self.transform = transform
+            self.transform_image = transform
+
+        self.transform_mask = transforms.Compose(
+            [
+                transforms.PILToTensor(),
+                transforms.Resize(
+                    self.size,
+                    interpolation=transforms.InterpolationMode.NEAREST,
+                    antialias=None,
+                ),
+                _multiclass_mask_to_multiple_binary_masks,
+            ]
+        )
 
     def __getitem__(self, index):
         to_tensor = transforms.PILToTensor()
@@ -80,13 +104,11 @@ class CityscapesDataset(data.Dataset):
             index
         ]
         image = Image.open(image_file).convert("RGB")
-        image = self.transform(image)
+        image = self.transform_image(image)
         label = Image.open(label_file).convert("RGB")
-        label = to_tensor(label)
-        label = multiclass_mask_to_multiple_binary_masks(label)
+        label = self.transform_mask(label)
         instance = Image.open(instance_file).convert("RGB")
-        instance = to_tensor(instance)
-        instance = multiclass_mask_to_multiple_binary_masks(instance)
+        instance = self.transform_mask(instance)
         panoptic = Image.open(panoptic_file).convert("RGB")
         panoptic = to_tensor(panoptic)
 
@@ -95,8 +117,40 @@ class CityscapesDataset(data.Dataset):
     def __len__(self):
         return len(self.training_files)
 
+    @classmethod
+    def plot_image(cls, image: torch.Tensor):
+        # reverse the normalization used in training
+        inverse_mean = -cls.IMAGENET_MEAN / cls.IMAGENET_STD
+        inverse_std = 1 / cls.IMAGENET_STD
+        transform = transforms.Compose(
+            [
+                transforms.Normalize(mean=inverse_mean, std=inverse_std),
+                transforms.ToPILImage(),
+            ]
+        )
+        image = transform(image)
+        image.save("image.png")
 
-def multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
+    @classmethod
+    def plot_mask(cls, masks: torch.Tensor):
+        from CityscapesLabels import trainId_to_color
+
+        board = torch.zeros(3, *masks.shape[1:])
+        for i, mask in enumerate(masks):
+            cur_color = trainId_to_color(i)
+            # repeat color tensor for braodcasting to the whole board
+            repeated_color = (
+                torch.tensor(cur_color).repeat(*mask.shape, 1).permute((2, 0, 1))
+            )
+            board += mask * repeated_color
+
+        # from int32 tensor to pillow image
+        board = 255 - board.to(torch.float32)
+        board = transforms.ToPILImage()(board)
+        board.save("mask.png")
+
+
+def _multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
     # check if different channels contain the same masks
     if len(mask.shape) == 3:
         num_channels = mask.shape[0]
@@ -116,14 +170,16 @@ def multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
 
 def _test():
     root = r"/home/cyrus/_Project/segment/training_data"
-    dataset_train = CityscapesDataset(root)
+    dataset_train = CityscapesDataset(root, scale=0.4)
     dataset_val = CityscapesDataset(root, split="val")
     dataset_test = CityscapesDataset(root, split="test")
     print(f"{len(dataset_train)=}| {len(dataset_val)=}| {len(dataset_test)=}")
-    image, label, instance, panoptic = dataset_train[1674]
+    image, label, instance, panoptic = dataset_train[0]
     print(image[0, :3, :3])
+    print(instance[0, :3, :3])
     print(image.shape, label.shape, instance.shape, panoptic.shape)
-    # print(instance[0, :3, :3])
+    CityscapesDataset.plot_image(image)
+    CityscapesDataset.plot_mask(label)
 
 
 if __name__ == "__main__":

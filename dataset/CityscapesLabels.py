@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 
+# yapf: disable
 Label = namedtuple( 'Label' , [
 
     'name'        , # The identifier of this label, e.g. 'car', 'person', ... .
@@ -48,7 +49,7 @@ Label = namedtuple( 'Label' , [
 # Make sure to provide your results using the original IDs and not the training IDs.
 # Note that many IDs are ignored in evaluation and thus you never need to predict these!
 
-labels = [
+LABELS = [
     #       name                     id    trainId   category            catId     hasInstances   ignoreInEval   color
     Label(  'unlabeled'            ,  0 ,      255 , 'void'            , 0       , False        , True         , (  0,  0,  0) ),
     Label(  'ego vehicle'          ,  1 ,      255 , 'void'            , 0       , False        , True         , (  0,  0,  0) ),
@@ -86,3 +87,13 @@ labels = [
     Label(  'bicycle'              , 33 ,       18 , 'vehicle'         , 7       , True         , False        , (119, 11, 32) ),
     Label(  'license plate'        , -1 ,       -1 , 'vehicle'         , 7       , False        , True         , (  0,  0,142) ),
 ]
+# yapf: enable
+
+
+def trainId_to_color(ID):
+    # trainId=255 will always be mapped to (0, 0, 0)
+    trainID_color_map = {
+        label.trainId: label.color for label in LABELS if label.trainId != 255
+    }
+    color = trainID_color_map.get(ID, (0, 0, 0))
+    return color
