@@ -17,7 +17,7 @@ class CityscapesDataset(data.Dataset):
     IMAGENET_STD = np.array((0.229, 0.224, 0.225))
     INPUT_CHANNELS, OUTPUT_CHANNELS = 3, 19
 
-    def __init__(self, root: str | Path, split: str = "train", transform=None, scale=1):
+    def __init__(self, root: str | Path, split: str = "train", scale=1):
         super().__init__()
 
         if type(root) == str:
@@ -68,22 +68,21 @@ class CityscapesDataset(data.Dataset):
             assert image_seq == label_seq == instance_seq == panoptic_seq
             assert image_frame == label_frame == instance_frame == panoptic_frame
 
+        # transform for train images and labels/instance
+        # the size is scaled accordingly
         self.scale = scale
         self.size = (int(self.HEIGHT * scale), int(self.WIDTH * scale))
-        if transform is None:
-            self.transform_image = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Resize(self.size, antialias=None),
-                    transforms.Normalize(
-                        mean=self.IMAGENET_MEAN,
-                        std=self.IMAGENET_STD,
-                        inplace=True,
-                    ),
-                ]
-            )
-        else:
-            self.transform_image = transform
+        self.transform_image = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize(self.size, antialias=None),
+                transforms.Normalize(
+                    mean=self.IMAGENET_MEAN,
+                    std=self.IMAGENET_STD,
+                    inplace=True,
+                ),
+            ]
+        )
 
         self.transform_mask = transforms.Compose(
             [
@@ -118,7 +117,7 @@ class CityscapesDataset(data.Dataset):
         return len(self.training_files)
 
     @classmethod
-    def plot_image(cls, image: torch.Tensor):
+    def plot_image(cls, image: torch.Tensor, save_to="image.png"):
         # reverse the normalization used in training
         inverse_mean = -cls.IMAGENET_MEAN / cls.IMAGENET_STD
         inverse_std = 1 / cls.IMAGENET_STD
@@ -129,11 +128,11 @@ class CityscapesDataset(data.Dataset):
             ]
         )
         image = transform(image)
-        image.save("image.png")
+        image.save(save_to)
 
     @classmethod
-    def plot_mask(cls, masks: torch.Tensor):
-        from CityscapesLabels import trainId_to_color
+    def plot_mask(cls, masks: torch.Tensor, save_to="mask.png"):
+        from .CityscapesLabels import trainId_to_color
 
         board = torch.zeros(3, *masks.shape[1:])
         for i, mask in enumerate(masks):
@@ -147,7 +146,14 @@ class CityscapesDataset(data.Dataset):
         # from int32 tensor to pillow image
         board = 255 - board.to(torch.float32)
         board = transforms.ToPILImage()(board)
-        board.save("mask.png")
+        board.save(save_to)
+
+    @classmethod
+    def plot_output(cls, output: torch.Tensor, save_to="prediction.png"):
+        # convert output to multiple binary masks
+        output_max = torch.max(output, 0, keepdim=True).values
+        prediction = (output == output_max).to(int)
+        cls.plot_mask(prediction, save_to=save_to)
 
 
 def _multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
@@ -178,8 +184,11 @@ def _test():
     print(image[0, :3, :3])
     print(instance[0, :3, :3])
     print(image.shape, label.shape, instance.shape, panoptic.shape)
+
     CityscapesDataset.plot_image(image)
     CityscapesDataset.plot_mask(label)
+    output = torch.rand(label.shape)
+    CityscapesDataset.plot_output(output)
 
 
 if __name__ == "__main__":
