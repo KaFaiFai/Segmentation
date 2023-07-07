@@ -1,3 +1,4 @@
 dataset/cityscapesScripts/
 training_data/
 snapshot/
+.env

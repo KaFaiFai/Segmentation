@@ -12,7 +12,6 @@ class LeNet(nn.Module):
 
         final_resolution = floor(floor(input_resolution / 2 - 2) / 2 - 2)
         final_num = 16 * final_resolution**2
-        print("final", final_resolution)
 
         self.resize = nn.AdaptiveAvgPool2d(input_resolution)
         self.conv1 = nn.Conv2d(3, 6, 5)

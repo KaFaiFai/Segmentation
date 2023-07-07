@@ -33,7 +33,7 @@ class CityscapesDataset(data.Dataset):
             )
         self.image_dir = self.root_dir / "leftImg8bit" / split
         self.ground_truth_dir = self.root_dir / "gtFine" / split
-        self.panoptic_dir = self.root_dir / "panoptic" / f"cityscapes_panoptic_{split}"
+        self.panoptic_dir = self.root_dir / "gtFine" / f"cityscapes_panoptic_{split}"
 
         # get paths to all image files needed
         self.image_files = list(self.image_dir.rglob("*.png"))
@@ -175,11 +175,17 @@ def _multiclass_mask_to_multiple_binary_masks(mask: torch.Tensor):
 
 
 def _test():
-    root = r"/home/cyrus/_Project/segment/training_data"
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    root = os.environ['CITYSCAPES_DATASET']
+    print(root)
+
     dataset_train = CityscapesDataset(root, scale=0.4)
     dataset_val = CityscapesDataset(root, split="val")
     dataset_test = CityscapesDataset(root, split="test")
     print(f"{len(dataset_train)=}| {len(dataset_val)=}| {len(dataset_test)=}")
+
     image, label, instance, panoptic = dataset_train[0]
     print(image[0, :3, :3])
     print(instance[0, :3, :3])

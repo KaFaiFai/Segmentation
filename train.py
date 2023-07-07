@@ -6,8 +6,11 @@ from dataset.Cityscapes import CityscapesDataset
 from model.UNET import UNET
 from pathlib import Path
 import numpy as np
+import os
+from dotenv import load_dotenv
 
 # Hyperparameters etc.
+load_dotenv()
 LEARNING_RATE = 3e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 1
@@ -15,7 +18,7 @@ NUM_EPOCHS = 1000
 NUM_WORKERS = 2
 IMAGE_SCALE = 0.25
 LOAD_MODEL = False
-DATA_ROOT = r"./training_data"
+DATA_ROOT = os.environ['CITYSCAPES_DATASET']
 
 
 def main():
