@@ -84,11 +84,11 @@ def test():
     from torchinfo import summary
 
     batch_size = 5
-    model = UNET(in_channels=3, out_channels=1)
-    summary(model, input_size=(batch_size, 3, 1024, 2048))
-    model.to(torch.float16)
-    x = torch.rand((batch_size, 3, 1024, 2048), dtype=torch.float16, device="cuda")
-    summary(model, input_data=x)
+    model = UNET(in_channels=3, out_channels=19)
+    summary(model, input_size=(batch_size, 3, 102, 204))
+    # model.to(torch.float16)
+    # x = torch.rand((batch_size, 3, 102, 204), dtype=torch.float16, device="cuda")
+    # summary(model, input_data=x)
 
 
 if __name__ == "__main__":
