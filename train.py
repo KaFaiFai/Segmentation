@@ -13,9 +13,10 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 1
 NUM_EPOCHS = 1000
 NUM_WORKERS = 2
-IMAGE_SCALE = 0.25
+IMAGE_SCALE = 0.1
 LOAD_MODEL = False
 DATA_ROOT = r"./training_data"
+EXP_NAME = "exp2"
 
 
 def main():
@@ -75,15 +76,16 @@ def main():
         # check_accuracy(val_loader, model, device=DEVICE)
 
         # save model and some examples to a folder
-        print("save snapshot")
-        image, label, _, _ = dataset_train[0]
-        image = image.to(DEVICE)
-        output = model(image.unsqueeze(0)).squeeze().to("cpu")
-        folder = Path("snapshot") / f"e{epoch:03d}"
-        folder.mkdir(parents=True, exist_ok=True)
-        CityscapesDataset.plot_image(image, folder / "image.png")
-        CityscapesDataset.plot_mask(label, folder / "label.png")
-        CityscapesDataset.plot_output(output, folder / "output.png")
+        if epoch % 50 == 0:
+            print("save snapshot")
+            image, label, _, _ = dataset_train[0]
+            image = image.to(DEVICE)
+            output = model(image.unsqueeze(0)).squeeze().to("cpu")
+            folder = Path("snapshot") / EXP_NAME / f"e{epoch:03d}"
+            folder.mkdir(parents=True, exist_ok=True)
+            CityscapesDataset.plot_image(image, folder / "image.png")
+            CityscapesDataset.plot_mask(label, folder / "label.png")
+            CityscapesDataset.plot_output(output, folder / "output.png")
 
         print("")
 

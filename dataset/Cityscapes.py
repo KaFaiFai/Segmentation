@@ -1,6 +1,7 @@
 """
 To load the Cityscapes Dataset for panoptic segmentation
 source: https://www.cityscapes-dataset.com/
+github: https://github.com/mcordts/cityscapesScripts/tree/master
 """
 
 from pathlib import Path
